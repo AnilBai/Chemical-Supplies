@@ -1,44 +1,24 @@
 pipeline {
     agent any
-    
-    environment {
-        DEPLOY_SERVER = "54.210.143.177"
-        DEPLOY_PATH = "/var/www/html/chemical-supplies" // Update as necessary
-    }
-
     stages {
         stage('Clone Repository') {
             steps {
-                checkout scm
+                // Pull the latest code from the GitHub repository
+                git branch: 'main', url: 'https://github.com/AnilBai/Chemical-Supplies.git'
             }
         }
-
-        stage('Build') {
+        stage('Deploy to EC2') {
             steps {
-                echo 'Building...'
-                // Add any build steps if necessary, for a static site it's optional
+                // SSH into the EC2 instance and pull the latest changes
+                sh """
+                ssh -o StrictHostKeyChecking=no ubuntu@54.210.143.177 << EOF
+                  cd /var/www/html/chemical-supplies
+                  git pull origin main
+                  sudo systemctl restart nginx
+                  exit
+                EOF
+                """
             }
-        }
-
-        stage('Deploy') {
-            steps {
-                script {
-                    // Remove existing files and copy new files
-                    sh """
-                    ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} 'rm -rf ${DEPLOY_PATH}/*'
-                    scp -o StrictHostKeyChecking=no -r * ubuntu@${DEPLOY_SERVER}:${DEPLOY_PATH}
-                    """
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'Deployment Successful!'
-        }
-        failure {
-            echo 'Deployment Failed.'
         }
     }
 }
